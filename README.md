@@ -14,7 +14,19 @@ This skill gives Claude deep knowledge of Ares — its architecture, traits, typ
 
 ## Install
 
-1. Download the latest release ZIP, or build it yourself:
+### Claude Code (CLI)
+
+```bash
+git clone https://github.com/AndreaBozzo/Ares-Claude-Skill.git
+mkdir -p ~/.claude/skills
+ln -s "$(pwd)/Ares-Claude-Skill/ares" ~/.claude/skills/ares
+```
+
+The skill is now available in all Claude Code sessions. Since it's a symlink, `git pull` is all you need to update.
+
+### Claude (Web/Desktop)
+
+1. Build the ZIP:
    ```bash
    cd ares && zip -r ../ares-skill.zip .
    ```
