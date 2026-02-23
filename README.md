@@ -8,7 +8,7 @@
   A <a href="https://support.claude.com/en/articles/12512198-how-to-create-custom-skills">Claude Code Skill</a> for <a href="https://github.com/AndreaBozzo/Ares">Ares</a>, the LLM-powered web scraper.
 </p>
 
-> **Ares 0.1.0** releases on crates.io on **February 29, 2026**. This skill will be published to the Anthropic Skill Marketplace shortly after.
+> **Ares 0.1.0** releases on crates.io on **March 1st, 2026**. This skill will be published to the Anthropic Skill Marketplace shortly after.
 
 ## What it does
 
