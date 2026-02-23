@@ -22,6 +22,10 @@ This skill gives Claude deep knowledge of Ares — its architecture, traits, typ
 
 ## Install
 
+### Fastest way
+
+Ask Claude to kindly install the skill for you!
+
 ### Claude Code (CLI)
 
 ```bash
