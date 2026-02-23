@@ -1,6 +1,14 @@
-# Ares — Claude Code Skill
+<p align="center">
+  <img src="docs/assets/ares-skill-logo.png" alt="Ares Skill Logo" width="800">
+</p>
 
-A [Claude Code Skill](https://support.claude.com/en/articles/12512198-how-to-create-custom-skills) for [Ares](https://github.com/AndreaBozzo/Ares), the LLM-powered web scraper.
+<h1 align="center">Ares — Claude Code Skill</h1>
+
+<p align="center">
+  A <a href="https://support.claude.com/en/articles/12512198-how-to-create-custom-skills">Claude Code Skill</a> for <a href="https://github.com/AndreaBozzo/Ares">Ares</a>, the LLM-powered web scraper.
+</p>
+
+> **Ares 0.1.0** releases on crates.io on **February 29, 2026**. This skill will be published to the Anthropic Skill Marketplace shortly after.
 
 ## What it does
 
