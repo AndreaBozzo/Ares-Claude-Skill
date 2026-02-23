@@ -87,7 +87,7 @@ Flags:
 - `--browser` — Use headless browser for fetching
 - `--skip-unchanged` — Skip saving if data unchanged
 
-## REST API (`ares-server`)
+## REST API (`ares-api`)
 
 Server runs on `ARES_SERVER_PORT` (default: 3000). OpenAPI docs at `/swagger-ui`.
 
@@ -199,7 +199,7 @@ docker compose up -d
 make migrate
 
 # Start server
-cargo run --bin ares-server
+cargo run --bin ares-api
 ```
 
 `compose.yml` provides:
@@ -212,10 +212,10 @@ cargo run --bin ares-server
 # Build image (multi-stage: Rust builder → Debian slim)
 make docker-build
 # or
-docker build -t ares-server:latest .
+docker build -t ares-api:latest .
 
 # Run
-docker run -p 3000:3000 --env-file .env ares-server:latest
+docker run -p 3000:3000 --env-file .env ares-api:latest
 ```
 
 The Dockerfile includes Chromium for browser-based scraping and uses release build with LTO + symbol stripping.

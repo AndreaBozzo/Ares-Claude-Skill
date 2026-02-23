@@ -21,7 +21,7 @@ ares-cli ──┬── ares-core
            ├── ares-client
            └── ares-db
 
-ares-server ─┬── ares-core
+ares-api ─┬── ares-core
              ├── ares-client
              └── ares-db
 

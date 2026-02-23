@@ -63,7 +63,7 @@ let svc = ScrapeService::with_store(fetcher, cleaner, extractor, store, "model".
 ```
 
 ### Integration Tests
-Located in `crates/ares-db/tests/integration/` and `crates/ares-server/tests/integration/`.
+Located in `crates/ares-db/tests/integration/` and `crates/ares-api/tests/integration/`.
 
 Require a running PostgreSQL. In CI, a Postgres container is started automatically.
 
@@ -115,7 +115,7 @@ crates/
 │   ├── database.rs         # Database wrapper
 │   ├── repository.rs       # ExtractionRepository
 │   └── job_repository.rs   # ScrapeJobRepository
-├── ares-server/src/
+├── ares-api/src/
 │   ├── main.rs             # Server entry point
 │   ├── routes.rs           # Axum handlers
 │   ├── dto.rs              # Request/response types

@@ -25,7 +25,7 @@ Each stage is a trait, so every component can be swapped or mocked independently
 | `ares-core` | Business logic, traits, pipeline | `ScrapeService`, `WorkerService`, `CircuitBreaker`, `ThrottledFetcher`, traits |
 | `ares-client` | HTTP/browser fetchers, cleaner, LLM client | `ReqwestFetcher`, `BrowserFetcher`, `HtmdCleaner`, `OpenAiExtractor` |
 | `ares-db` | PostgreSQL persistence | `Database`, `ExtractionRepository`, `ScrapeJobRepository` |
-| `ares-server` | Axum REST API | Routes, DTOs, bearer auth, OpenAPI/Swagger |
+| `ares-api` | Axum REST API | Routes, DTOs, bearer auth, OpenAPI/Swagger |
 | `ares-cli` | Command-line interface | `scrape`, `history`, `job`, `worker` subcommands |
 
 ## Core Traits (`ares-core::traits`)
