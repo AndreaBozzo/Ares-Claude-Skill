@@ -117,8 +117,8 @@ impl ExtractionStore for MyStore {
         todo!()
     }
 
-    async fn get_history(&self, url: &str, schema_name: &str, limit: usize) -> Result<Vec<Extraction>, AppError> {
-        // Return extraction history, newest first
+    async fn get_history(&self, url: &str, schema_name: &str, limit: usize, offset: usize) -> Result<Vec<Extraction>, AppError> {
+        // Return extraction history, newest first, with offset-based pagination
         todo!()
     }
 }
@@ -147,7 +147,8 @@ impl JobQueue for MyJobQueue {
     async fn fail_job(&self, job_id: Uuid, error: &str, next_retry_at: Option<DateTime<Utc>>) -> Result<(), AppError> { todo!() }
     async fn cancel_job(&self, job_id: Uuid) -> Result<(), AppError> { todo!() }
     async fn get_job(&self, job_id: Uuid) -> Result<Option<ScrapeJob>, AppError> { todo!() }
-    async fn list_jobs(&self, status: Option<JobStatus>, limit: usize) -> Result<Vec<ScrapeJob>, AppError> { todo!() }
+    async fn list_jobs(&self, status: Option<JobStatus>, limit: usize, offset: usize) -> Result<Vec<ScrapeJob>, AppError> { todo!() }
+    async fn retry_job(&self, job_id: Uuid) -> Result<Option<ScrapeJob>, AppError> { todo!() }
     async fn release_job(&self, job_id: Uuid) -> Result<(), AppError> { todo!() }
     async fn release_worker_jobs(&self, worker_id: &str) -> Result<u64, AppError> { todo!() }
     async fn count_by_status(&self, status: JobStatus) -> Result<i64, AppError> { todo!() }

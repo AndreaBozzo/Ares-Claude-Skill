@@ -137,11 +137,41 @@ All `/v1/*` endpoints require bearer token: `Authorization: Bearer $ARES_ADMIN_T
 { "job_id": "uuid", "status": "pending" }
 ```
 
-#### `GET /v1/jobs?status=pending&limit=20` — List jobs
+#### `GET /v1/jobs?status=pending&limit=20&offset=0` — List jobs
+
+```json
+// Response 200
+{
+  "jobs": [...],
+  "total": 150,       // total matching count in DB
+  "limit": 20,
+  "offset": 0
+}
+```
+
 #### `GET /v1/jobs/{id}` — Get job details
 #### `DELETE /v1/jobs/{id}` — Cancel job (204 / 404 / 409)
 
-#### `GET /v1/extractions?url=...&schema_name=...&limit=10` — Query history
+#### `POST /v1/jobs/{id}/retry` — Retry failed/cancelled job
+
+Resets a `failed` or `cancelled` job back to `pending`. Returns 409 if the job is not in a retryable state, 404 if not found.
+
+```json
+// Response 200 — returns the updated job
+{ "id": "uuid", "status": "pending", "retry_count": 0, ... }
+```
+
+#### `GET /v1/extractions?url=...&schema_name=...&limit=10&offset=0` — Query history
+
+```json
+// Response 200
+{
+  "extractions": [...],
+  "total": 42,
+  "limit": 10,
+  "offset": 0
+}
+```
 
 #### `GET /v1/schemas` — List all schemas
 #### `GET /v1/schemas/{name}/{version}` — Get schema

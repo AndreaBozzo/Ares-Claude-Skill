@@ -52,7 +52,7 @@ pub trait ExtractorFactory: Send + Sync + Clone {
 pub trait ExtractionStore: Send + Sync + Clone {
     fn save(&self, extraction: &NewExtraction) -> impl Future<Output = Result<Uuid, AppError>> + Send;
     fn get_latest(&self, url: &str, schema_name: &str) -> impl Future<Output = Result<Option<Extraction>, AppError>> + Send;
-    fn get_history(&self, url: &str, schema_name: &str, limit: usize) -> impl Future<Output = Result<Vec<Extraction>, AppError>> + Send;
+    fn get_history(&self, url: &str, schema_name: &str, limit: usize, offset: usize) -> impl Future<Output = Result<Vec<Extraction>, AppError>> + Send;
 }
 ```
 
