@@ -37,6 +37,7 @@ Flags:
 - `--llm-timeout` — LLM API timeout in seconds
 - `--system-prompt` — Custom system prompt for the LLM
 - `--skip-unchanged` — Skip saving if data hash matches previous
+- `--throttle` — Per-domain throttle delay in milliseconds (0 = disabled)
 
 ### `ares history` — View extraction history
 
@@ -86,6 +87,7 @@ Flags:
 - `--api-key` — LLM API key (default: env `ARES_API_KEY`)
 - `--browser` — Use headless browser for fetching
 - `--skip-unchanged` — Skip saving if data unchanged
+- `--throttle` — Per-domain throttle delay in milliseconds (0 = disabled)
 
 ## REST API (`ares-api`)
 
