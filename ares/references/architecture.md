@@ -121,6 +121,7 @@ Default: 1s delay, 500ms jitter.
 | `CleanerError(String)` | No | No |
 | `SchemaValidationError(String)` | No | No |
 | `SchemaError(String)` | No | No |
+| `SchemaNotFound { name, version }` | No | No |
 | `SerializationError(serde_json::Error)` | No | No |
 | `ConfigError(String)` | No | No |
 | `DatabaseError(String)` | No | No |

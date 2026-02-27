@@ -70,7 +70,7 @@ pub trait ExtractionStore: Send + Sync + Clone {
 | `RetryConfig` | `ares_core::job` | Exponential backoff: 1min → 5min → 30min → 60min (capped) |
 | `WorkerConfig` | `ares_core::job` | Worker settings: poll_interval, retry_config, skip_unchanged |
 | `AppError` | `ares_core::error` | Error enum with `is_retryable()` and `should_trip_circuit()` |
-| `SchemaResolver` | `ares_core::schema` | Resolves file paths or `name@version` references |
+| `SchemaResolver` | `ares_core::schema` | CRUD for schemas: resolve, create, update, delete + registry management |
 | `CircuitBreaker` | `ares_core::circuit_breaker` | Closed → Open → HalfOpen state machine |
 | `ThrottledFetcher<F>` | `ares_core::throttle` | Per-domain delay with jitter |
 

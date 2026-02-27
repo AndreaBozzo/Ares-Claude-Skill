@@ -46,7 +46,7 @@ schemas/
 }
 ```
 
-Updated automatically when creating schemas via `SchemaResolver::create_schema()` or the `POST /v1/schemas` API endpoint.
+Updated automatically when creating, deleting schemas via `SchemaResolver` methods or the corresponding API endpoints.
 
 ## Writing a Schema
 
@@ -83,19 +83,30 @@ Example (`schemas/blog/1.0.0.json`):
 - Use `title` at the root level for clarity (e.g., `"title": "BlogPage"`)
 - Version schemas with semver: `name/version.json`
 
-## Creating Schemas Programmatically
+## Managing Schemas Programmatically
 
 ```rust
 let resolver = SchemaResolver::new("schemas/");
+
+// Create — writes file and updates registry.json
 resolver.create_schema("product", "1.0.0", &schema_json)?;
-// Creates schemas/product/1.0.0.json and updates registry.json
+
+// Update — overwrites file content, does NOT change registry
+resolver.update_schema("product", "1.0.0", &new_schema_json)?;
+
+// Delete — removes file, updates registry (promotes next version or removes entry)
+resolver.delete_schema("product", "1.0.0")?;
 ```
+
+Both `update_schema` and `delete_schema` return `AppError::SchemaNotFound` if the schema doesn't exist.
 
 ## Server Schema Endpoints
 
 - `GET /v1/schemas` — List all schemas with versions
 - `GET /v1/schemas/{name}/{version}` — Get a specific schema
-- `POST /v1/schemas` — Create a new schema version
+- `POST /v1/schemas` — Create a new schema version (201)
+- `PUT /v1/schemas/{name}/{version}` — Update schema content (200 / 404)
+- `DELETE /v1/schemas/{name}/{version}` — Delete a schema version (204 / 404)
 
 ```bash
 # Create via API
@@ -103,7 +114,23 @@ curl -X POST http://localhost:3000/v1/schemas \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "product", "version": "1.0.0", "schema": {"type": "object", ...}}'
+
+# Update via API
+curl -X PUT http://localhost:3000/v1/schemas/product/1.0.0 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"schema": {"type": "object", ...}}'
+
+# Delete via API
+curl -X DELETE http://localhost:3000/v1/schemas/product/1.0.0 \
+  -H "Authorization: Bearer $TOKEN"
 ```
+
+### Delete behavior
+
+- If the deleted version was the **latest**, the registry is updated to point to the next most recent version (using semantic version comparison).
+- If it was the **only version**, the entry is removed from `registry.json` and the empty directory is cleaned up.
+- If it was a **non-latest version**, the registry is unchanged.
 
 ## Helper Functions
 

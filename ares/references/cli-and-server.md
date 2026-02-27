@@ -185,6 +185,20 @@ Resets a `failed` or `cancelled` job back to `pending`. Returns 409 if the job i
 { "name": "product", "version": "1.0.0" }
 ```
 
+#### `PUT /v1/schemas/{name}/{version}` — Update schema (200 / 404)
+
+```json
+// Request
+{ "schema": {"type": "object", "properties": {...}} }
+
+// Response 200
+{ "name": "product", "version": "1.0.0", "schema": {...} }
+```
+
+#### `DELETE /v1/schemas/{name}/{version}` — Delete schema (204 / 404)
+
+Deletes a specific schema version. If the deleted version was the latest, the registry is updated to point to the next most recent version. If it was the only version, the entry is removed from the registry.
+
 #### `GET /health` — Health check (public, no auth)
 
 ```json
