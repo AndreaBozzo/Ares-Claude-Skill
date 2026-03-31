@@ -51,8 +51,50 @@ Constructors:
 - `ScrapeService::new(fetcher, cleaner, extractor, model_name)` — no persistence
 - `ScrapeService::with_store(fetcher, cleaner, extractor, store, model_name)` — with DB
 - `.with_skip_unchanged(true)` — builder method to enable change-detection skipping
+- `.with_caches(Some(content_cache), Some(extraction_cache))` — enable in-memory caching
 
 Use `NullStore` (from `ares_core::traits`) as the type parameter when persistence is not needed.
+
+## Caching
+
+Two in-memory caches using the `moka` crate (async-aware, TTL-based eviction):
+
+**ContentCache** — caches fetched HTML by URL hash (SHA-256):
+- Default: 1,000 entries, 3600s TTL
+- Skips `Fetcher::fetch()` on cache hit
+
+**ExtractionCache** — caches LLM extraction results by composite key:
+- Key: `SHA256(content_hash:schema_name:schema_hash:model)`
+- Default: 10,000 entries, 3600s TTL
+- Skips `Extractor::extract()` on cache hit (avoids redundant LLM API calls)
+
+Both caches are optional — pass `None` to disable. CLI flags: `--no-cache`, `--cache-ttl <secs>`.
+
+## Crawling
+
+`CrawlConfig` (in `ares-core::crawl`) drives recursive web crawling:
+
+```rust
+CrawlConfig {
+    max_depth: u32,           // default: 3
+    max_pages: u32,           // default: 100
+    allowed_domains: Vec<String>,
+    respect_robots_txt: bool, // default: true
+    url_pattern: Option<String>,
+}
+```
+
+Crawl flow:
+1. Seed URL creates a `ScrapeJob` with `crawl_session_id` and `depth: 0`
+2. Worker processes the job via `ScrapeService`, gets `raw_html` back
+3. `LinkDiscoverer::discover_links(html, base_url)` extracts URLs from HTML
+4. `RobotsChecker::is_allowed(url)` filters by robots.txt rules (cached per-domain)
+5. New child jobs are created with `depth + 1`, respecting `max_depth` and `max_pages`
+6. Process repeats until limits are reached or no new URLs are found
+
+Built-in implementations:
+- `HtmlLinkDiscoverer` — extracts `<a href>` tags, resolves relative URLs, deduplicates
+- `CachedRobotsChecker` — fetches and caches robots.txt per domain, graceful degradation on failures
 
 ## WorkerService
 
@@ -137,3 +179,8 @@ Migration `002_scrape_jobs.sql`:
 - `scrape_jobs` table: full job lifecycle tracking with `status`, `retry_count`, `worker_id`, `next_retry_at`
 - 5 indexes: pending jobs, retry scheduling, worker lookup, status filter, URL lookup
 - Job claiming uses `SELECT FOR UPDATE SKIP LOCKED` for atomic concurrent access
+
+Migration `003_crawl_support.sql`:
+- Adds crawl columns to `scrape_jobs`: `crawl_session_id`, `parent_job_id`, `depth`, `max_depth`, `max_pages`, `allowed_domains`
+- New table `crawl_visited_urls`: `session_id` + `url_hash` PK for URL deduplication
+- Indexes: `idx_scrape_jobs_crawl_session`, `idx_scrape_jobs_parent`

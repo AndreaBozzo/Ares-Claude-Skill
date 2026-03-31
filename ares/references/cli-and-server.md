@@ -38,6 +38,9 @@ Flags:
 - `--system-prompt` — Custom system prompt for the LLM
 - `--skip-unchanged` — Skip saving if data hash matches previous
 - `--throttle` — Per-domain throttle delay in milliseconds (0 = disabled)
+- `--no-cache` — Disable in-memory caching (content + extraction)
+- `--cache-ttl` — Cache TTL in seconds (default: 3600, env: `ARES_CACHE_TTL`)
+- `--format` — Output format: `json` (default), `jsonl`, `csv`, `table`, `jq`
 
 ### `ares history` — View extraction history
 
@@ -49,6 +52,7 @@ Flags:
 - `-u, --url` — Filter by URL (required)
 - `-s, --schema-name` — Filter by schema name (required)
 - `--limit` — Max results (default: 10)
+- `--format` — Output format: `json` (default), `jsonl`, `csv`, `table`, `jq`
 
 ### `ares job` — Manage persistent jobs
 
@@ -88,6 +92,45 @@ Flags:
 - `--browser` — Use headless browser for fetching
 - `--skip-unchanged` — Skip saving if data unchanged
 - `--throttle` — Per-domain throttle delay in milliseconds (0 = disabled)
+- `--no-cache` — Disable in-memory caching
+- `--cache-ttl` — Cache TTL in seconds (default: 3600, env: `ARES_CACHE_TTL`)
+
+### `ares crawl` — Recursive web crawling
+
+```bash
+# Start a crawl session
+cargo run --bin ares-cli -- crawl start \
+  -u https://example.com \
+  -s blog@latest \
+  --max-depth 2 \
+  --max-pages 20 \
+  --allowed-domains example.com,blog.example.com
+
+# Check crawl progress
+cargo run --bin ares-cli -- crawl status <SESSION_ID>
+
+# Get extracted results from all crawled pages
+cargo run --bin ares-cli -- crawl results <SESSION_ID>
+```
+
+Flags (start subcommand):
+- `-u, --url` — Seed URL to start crawling from (required)
+- `-s, --schema` — Schema path or `name@version` (required)
+- `-d, --max-depth` — Maximum crawl depth (default: 1)
+- `-m, --model` — LLM model (default: env `ARES_MODEL`)
+- `-b, --base-url` — API base URL (default: env `ARES_BASE_URL`)
+- `--max-pages` — Maximum total pages to crawl (default: 100)
+- `--allowed-domains` — Comma-separated domain allowlist (defaults to seed URL domain)
+- `--schema-name` — Override schema name
+
+Note: Crawl creates jobs in the queue. A worker (`ares worker`) must be running to process them.
+
+### `ares schema` — Schema management
+
+```bash
+# Validate a JSON Schema file
+cargo run --bin ares-cli -- schema validate schemas/blog/1.0.0.json
+```
 
 ## REST API (`ares-api`)
 
@@ -201,6 +244,48 @@ Resets a `failed` or `cancelled` job back to `pending`. Returns 409 if the job i
 
 Deletes a specific schema version. If the deleted version was the latest, the registry is updated to point to the next most recent version. If it was the only version, the entry is removed from the registry.
 
+#### `POST /v1/crawl` — Start crawl session (202 Accepted)
+
+```json
+// Request
+{
+  "url": "https://example.com",
+  "schema_name": "blog",
+  "schema": {...},
+  "model": "gpt-4o-mini",
+  "base_url": "https://api.openai.com/v1",
+  "max_depth": 2,
+  "max_pages": 50,
+  "allowed_domains": ["example.com"]
+}
+
+// Response 202
+{
+  "session_id": "uuid",
+  "seed_job_id": "uuid"
+}
+```
+
+#### `GET /v1/crawl/{id}` — Crawl status
+
+```json
+// Response 200
+{
+  "session_id": "uuid",
+  "total_jobs": 15,
+  "pending": 3,
+  "running": 1,
+  "completed": 10,
+  "failed": 1,
+  "cancelled": 0,
+  "progress": 73.3
+}
+```
+
+#### `GET /v1/crawl/{id}/results` — Crawl results
+
+Returns extracted data from all completed jobs in the crawl session.
+
 #### `GET /health` — Health check (public, no auth)
 
 ```json
@@ -228,6 +313,9 @@ ARES_CORS_ORIGIN=*                  # CORS allowed origins
 ARES_RATE_LIMIT_BURST=30
 ARES_RATE_LIMIT_RPS=1
 ARES_BODY_SIZE_LIMIT=2097152        # 2MB
+
+# Caching
+ARES_CACHE_TTL=3600                  # In-memory cache TTL in seconds
 
 # Browser (optional)
 CHROME_BIN=/path/to/chromium

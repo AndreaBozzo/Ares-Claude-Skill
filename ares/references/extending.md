@@ -159,6 +159,46 @@ Built-in: `ScrapeJobRepository` — PostgreSQL with `SELECT FOR UPDATE SKIP LOCK
 
 Important: `claim_job` must be atomic — use row-level locking or equivalent to prevent double-claiming.
 
+## Implementing a Custom LinkDiscoverer
+
+```rust
+use ares_core::error::AppError;
+use ares_core::traits::LinkDiscoverer;
+
+#[derive(Clone)]
+pub struct MyLinkDiscoverer;
+
+impl LinkDiscoverer for MyLinkDiscoverer {
+    fn discover_links(&self, html: &str, base_url: &str) -> Result<Vec<String>, AppError> {
+        // Parse HTML, extract links, resolve relative URLs
+        // Return deduplicated absolute URLs
+        todo!()
+    }
+}
+```
+
+Built-in: `HtmlLinkDiscoverer` — extracts `<a href>` tags, resolves relative URLs, normalizes fragments, deduplicates (`ares-client::link_discovery`).
+
+## Implementing a Custom RobotsChecker
+
+```rust
+use ares_core::error::AppError;
+use ares_core::traits::RobotsChecker;
+
+#[derive(Clone)]
+pub struct MyRobotsChecker;
+
+impl RobotsChecker for MyRobotsChecker {
+    async fn is_allowed(&self, url: &str) -> Result<bool, AppError> {
+        // Check if the URL is allowed by robots.txt rules
+        // Return true if crawling is permitted
+        todo!()
+    }
+}
+```
+
+Built-in: `CachedRobotsChecker` — fetches and caches robots.txt per domain, with configurable user-agent and graceful degradation on fetch failures (`ares-client::robots`).
+
 ## Wiring Custom Implementations
 
 ```rust

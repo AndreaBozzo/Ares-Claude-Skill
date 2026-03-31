@@ -104,12 +104,16 @@ crates/
 │   ├── circuit_breaker.rs  # CircuitBreaker
 │   ├── throttle.rs         # ThrottledFetcher
 │   ├── schema.rs           # SchemaResolver
+│   ├── cache.rs            # ContentCache, ExtractionCache
+│   ├── crawl.rs            # CrawlConfig
 │   └── testutil.rs         # Mock implementations
 ├── ares-client/src/
 │   ├── fetcher.rs          # ReqwestFetcher
 │   ├── browser_fetcher.rs  # BrowserFetcher (feature: browser)
 │   ├── cleaner.rs          # HtmdCleaner
-│   └── llm.rs              # OpenAiExtractor, OpenAiExtractorFactory
+│   ├── llm.rs              # OpenAiExtractor, OpenAiExtractorFactory
+│   ├── link_discovery.rs   # HtmlLinkDiscoverer
+│   └── robots.rs           # CachedRobotsChecker
 ├── ares-db/src/
 │   ├── config.rs           # DatabaseConfig
 │   ├── database.rs         # Database wrapper
@@ -124,5 +128,6 @@ crates/
 │   ├── error.rs            # ApiError
 │   └── openapi.rs          # Swagger config
 └── ares-cli/src/
-    └── main.rs             # CLI with clap
+    ├── main.rs             # CLI with clap
+    └── output.rs           # OutputFormatter (json, jsonl, csv, table, jq)
 ```

@@ -1,5 +1,5 @@
 ---
-name: Ares
+name: ares
 description: Use when working with the Ares web scraper — an LLM-powered Rust tool that extracts structured data from websites using JSON Schemas. Covers library usage, CLI commands, REST API, schema creation, adding custom fetchers/cleaners/extractors, deployment, and contributing to the Ares codebase.
 ---
 
@@ -13,20 +13,20 @@ Ares is a Rust library, CLI, and HTTP server that extracts structured data from 
 ## Pipeline
 
 ```
-URL → Fetcher (HTML) → Cleaner (Markdown) → Extractor (LLM + JSON Schema) → Hash → Compare → Store
+URL → [ContentCache?] → Fetcher (HTML) → Cleaner (Markdown) → [ExtractionCache?] → Extractor (LLM + JSON Schema) → Hash → Compare → Store
 ```
 
-Each stage is a trait, so every component can be swapped or mocked independently.
+Each stage is a trait, so every component can be swapped or mocked independently. Optional in-memory caches (moka) skip fetch/extraction when content or results are already cached.
 
 ## Crate Map
 
 | Crate | Purpose | Key Exports |
 |---|---|---|
-| `ares-core` | Business logic, traits, pipeline | `ScrapeService`, `WorkerService`, `CircuitBreaker`, `ThrottledFetcher`, traits |
-| `ares-client` | HTTP/browser fetchers, cleaner, LLM client | `ReqwestFetcher`, `BrowserFetcher`, `HtmdCleaner`, `OpenAiExtractor` |
+| `ares-core` | Business logic, traits, pipeline | `ScrapeService`, `WorkerService`, `CircuitBreaker`, `ThrottledFetcher`, `CrawlConfig`, `ContentCache`, `ExtractionCache`, `CacheConfig`, `validate_schema`, traits |
+| `ares-client` | HTTP/browser fetchers, cleaner, LLM client | `ReqwestFetcher`, `BrowserFetcher`, `HtmdCleaner`, `OpenAiExtractor`, `HtmlLinkDiscoverer`, `CachedRobotsChecker` |
 | `ares-db` | PostgreSQL persistence | `Database`, `ExtractionRepository`, `ScrapeJobRepository` |
-| `ares-api` | Axum REST API | Routes, DTOs, bearer auth, OpenAPI/Swagger |
-| `ares-cli` | Command-line interface | `scrape`, `history`, `job`, `worker` subcommands |
+| `ares-api` | Axum REST API | Routes, DTOs, bearer auth, OpenAPI/Swagger, crawl endpoints |
+| `ares-cli` | Command-line interface | `scrape`, `history`, `job`, `worker`, `crawl`, `schema` subcommands, output formats |
 
 ## Core Traits (`ares-core::traits`)
 
@@ -58,6 +58,16 @@ pub trait ExtractionStore: Send + Sync + Clone {
 
 `JobQueue` trait: see `ares-core::job_queue` — persistent queue with atomic claiming (`SELECT FOR UPDATE SKIP LOCKED`).
 
+```rust
+pub trait LinkDiscoverer: Send + Sync + Clone {
+    fn discover_links(&self, html: &str, base_url: &str) -> Result<Vec<String>, AppError>;
+}
+
+pub trait RobotsChecker: Send + Sync + Clone {
+    fn is_allowed(&self, url: &str) -> impl Future<Output = Result<bool, AppError>> + Send;
+}
+```
+
 ## Key Types
 
 | Type | Module | Purpose |
@@ -73,6 +83,11 @@ pub trait ExtractionStore: Send + Sync + Clone {
 | `SchemaResolver` | `ares_core::schema` | CRUD for schemas: resolve, create, update, delete + registry management |
 | `CircuitBreaker` | `ares_core::circuit_breaker` | Closed → Open → HalfOpen state machine |
 | `ThrottledFetcher<F>` | `ares_core::throttle` | Per-domain delay with jitter |
+| `CrawlConfig` | `ares_core::crawl` | Crawl settings: max_depth, max_pages, allowed_domains, respect_robots_txt |
+| `CacheConfig` | `ares_core::cache` | Cache TTL and capacity limits |
+| `ContentCache` | `ares_core::cache` | URL-keyed in-memory HTML cache (moka) |
+| `ExtractionCache` | `ares_core::cache` | Content+schema+model-keyed extraction result cache (moka) |
+| `OutputFormat` | `ares_cli::output` | Enum: Json, Jsonl, Csv, Table, Jq |
 
 ## Quick Start (Library Usage)
 
@@ -113,8 +128,8 @@ With persistence, use `ScrapeService::with_store(fetcher, cleaner, extractor, st
 
 ## Version Notes
 
-- **Current version:** 0.1.0
-- **crates.io release:** Scheduled for February 29, 2026
-- Until then, use git dependency: `ares-core = { git = "https://github.com/AndreaBozzo/Ares" }`
+- **Current version:** 0.2.0
+- Until crates.io release, use git dependency: `ares-core = { git = "https://github.com/AndreaBozzo/Ares" }`
 - Works with any OpenAI-compatible API (OpenAI, Gemini, etc.)
 - Browser support requires feature flag: `--features browser`
+- **New in 0.2.0:** Web crawling, in-memory caching, output formats (json/jsonl/csv/table/jq), schema validation, 8 built-in schema templates

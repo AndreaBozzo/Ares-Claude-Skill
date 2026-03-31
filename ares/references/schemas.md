@@ -27,12 +27,15 @@ Returns a `ResolvedSchema { path, name, schema }`.
 
 ```
 schemas/
-├── registry.json              # Maps schema names to latest versions
-├── blog/
-│   ├── 1.0.0.json
-│   └── 2.0.0.json
-└── github_repo/
-    └── 1.0.0.json
+├── registry.json
+├── blog/1.0.0.json
+├── github_repo/1.0.0.json
+├── product/1.0.0.json
+├── news_article/1.0.0.json
+├── job_listing/1.0.0.json
+├── recipe/1.0.0.json
+├── event/1.0.0.json
+└── dataset/1.0.0.json
 ```
 
 ## Registry Format
@@ -42,7 +45,13 @@ schemas/
 ```json
 {
   "blog": "1.0.0",
-  "github_repo": "1.0.0"
+  "github_repo": "1.0.0",
+  "product": "1.0.0",
+  "news_article": "1.0.0",
+  "job_listing": "1.0.0",
+  "recipe": "1.0.0",
+  "event": "1.0.0",
+  "dataset": "1.0.0"
 }
 ```
 
@@ -131,6 +140,37 @@ curl -X DELETE http://localhost:3000/v1/schemas/product/1.0.0 \
 - If the deleted version was the **latest**, the registry is updated to point to the next most recent version (using semantic version comparison).
 - If it was the **only version**, the entry is removed from `registry.json` and the empty directory is cleaned up.
 - If it was a **non-latest version**, the registry is unchanged.
+
+## Built-in Schema Templates
+
+Ares ships with 8 schema templates covering common website types:
+
+| Schema | Target Use Case | Key Properties |
+|---|---|---|
+| `blog` | Blog posts, articles | title, author, publish_date, summary, tags, hero_image, url |
+| `github_repo` | GitHub repository pages | name, description, stars, forks, language, topics, license, open_issues |
+| `product` | E-commerce product pages | name, brand, price, currency, rating, review_count, availability, sku |
+| `news_article` | News sites | headline, author, publish_date, source, summary, body_text, category, tags |
+| `job_listing` | Job boards | title, company, location, salary_range, employment_type, requirements, remote |
+| `recipe` | Recipe websites | name, prep_time, cook_time, servings, ingredients, instructions, cuisine, rating |
+| `event` | Event listings | name, organizer, start_date, end_date, location, venue, ticket_price, category |
+| `dataset` | Open data portals | title, publisher, format, license, download_url, temporal_coverage, spatial_coverage |
+
+## Schema Validation
+
+Schemas are validated against the JSON Schema meta-schema on creation and update:
+
+```rust
+use ares_core::validate_schema;
+
+let schema = serde_json::json!({"type": "object", "properties": {...}});
+validate_schema(&schema)?; // Returns AppError::SchemaValidationError if invalid
+```
+
+CLI command:
+```bash
+ares schema validate schemas/blog/1.0.0.json
+```
 
 ## Helper Functions
 
