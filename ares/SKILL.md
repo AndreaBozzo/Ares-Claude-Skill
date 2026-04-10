@@ -22,8 +22,8 @@ Each stage is a trait, so every component can be swapped or mocked independently
 
 | Crate | Purpose | Key Exports |
 |---|---|---|
-| `ares-core` | Business logic, traits, pipeline | `ScrapeService`, `WorkerService`, `CircuitBreaker`, `ThrottledFetcher`, `CrawlConfig`, `ContentCache`, `ExtractionCache`, `CacheConfig`, `validate_schema`, traits |
-| `ares-client` | HTTP/browser fetchers, cleaner, LLM client | `ReqwestFetcher`, `BrowserFetcher`, `HtmdCleaner`, `OpenAiExtractor`, `HtmlLinkDiscoverer`, `CachedRobotsChecker` |
+| `ares-core` | Business logic, traits, pipeline | `ScrapeService`, `WorkerService`, `CircuitBreaker`, `ThrottledFetcher`, `CrawlConfig`, `ContentCache`, `ExtractionCache`, `CacheConfig`, `ProxyConfig`, `StealthConfig`, `TlsBackend`, `validate_schema`, traits |
+| `ares-client` | HTTP/browser fetchers, cleaner, LLM client | `ReqwestFetcher`, `BrowserFetcher`, `HtmdCleaner`, `OpenAiExtractor`, `HtmlLinkDiscoverer`, `CachedRobotsChecker`, `UserAgentPool` |
 | `ares-db` | PostgreSQL persistence | `Database`, `ExtractionRepository`, `ScrapeJobRepository` |
 | `ares-api` | Axum REST API | Routes, DTOs, bearer auth, OpenAPI/Swagger, crawl endpoints |
 | `ares-cli` | Command-line interface | `scrape`, `history`, `job`, `worker`, `crawl`, `schema` subcommands, output formats |
@@ -88,6 +88,12 @@ pub trait RobotsChecker: Send + Sync + Clone {
 | `ContentCache` | `ares_core::cache` | URL-keyed in-memory HTML cache (moka) |
 | `ExtractionCache` | `ares_core::cache` | Content+schema+model-keyed extraction result cache (moka) |
 | `OutputFormat` | `ares_cli::output` | Enum: Json, Jsonl, Csv, Table, Jq |
+| `ProxyConfig` | `ares_core::proxy` | Proxy pool with rotation (round-robin or random), thread-safe via AtomicUsize |
+| `ProxyEntry` | `ares_core::proxy` | Single proxy endpoint (url + optional auth credentials, percent-encoded) |
+| `RotationStrategy` | `ares_core::proxy` | Enum: RoundRobin, Random |
+| `TlsBackend` | `ares_core::proxy` | Enum: Rustls (default), Native, Random — for TLS fingerprint diversity |
+| `StealthConfig` | `ares_core::stealth` | Browser anti-fingerprinting config (all opt-in, default disabled) |
+| `UserAgentPool` | `ares_client::user_agent` | 20 realistic browser UA strings, random selection per request |
 
 ## Quick Start (Library Usage)
 
@@ -132,4 +138,4 @@ With persistence, use `ScrapeService::with_store(fetcher, cleaner, extractor, st
 - Until crates.io release, use git dependency: `ares-core = { git = "https://github.com/AndreaBozzo/Ares" }`
 - Works with any OpenAI-compatible API (OpenAI, Gemini, etc.)
 - Browser support requires feature flag: `--features browser`
-- **New in 0.2.0:** Web crawling, in-memory caching, output formats (json/jsonl/csv/table/jq), schema validation, 8 built-in schema templates
+- **New in 0.2.0:** Web crawling, in-memory caching, output formats (json/jsonl/csv/table/jq), schema validation, 8 built-in schema templates, proxy rotation, User-Agent rotation, browser stealth mode, TLS backend selection

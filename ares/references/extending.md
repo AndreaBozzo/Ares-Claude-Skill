@@ -22,8 +22,8 @@ impl Fetcher for MyFetcher {
 ```
 
 Built-in implementations:
-- `ReqwestFetcher` — standard HTTP client (`ares-client::fetcher`)
-- `BrowserFetcher` — headless Chrome via chromiumoxide (`ares-client::browser_fetcher`, feature: `browser`)
+- `ReqwestFetcher` — standard HTTP client with optional proxy rotation, TLS backend selection, and User-Agent rotation (`ares-client::fetcher`)
+- `BrowserFetcher` — headless Chrome via chromiumoxide with optional proxy and stealth mode (`ares-client::browser_fetcher`, feature: `browser`)
 - `ThrottledFetcher<F>` — wraps any Fetcher with per-domain delays (`ares-core::throttle`)
 
 ## Implementing a Custom Cleaner

@@ -20,6 +20,22 @@ cargo run --bin ares-cli -- scrape -u https://example.com -s blog@latest --save
 # With browser (for SPAs)
 cargo run --bin ares-cli --features browser -- scrape -u https://spa.com -s blog@latest --browser
 
+# With proxy rotation
+cargo run --bin ares-cli -- scrape -u https://example.com -s blog@latest \
+  --proxy http://proxy1:8080 --proxy-rotation round-robin
+
+# With stealth mode (requires --browser)
+cargo run --bin ares-cli --features browser -- scrape -u https://spa.com -s blog@latest \
+  --browser --stealth --random-ua --tls-backend native
+
+# With proxy rotation
+cargo run --bin ares-cli -- scrape -u https://example.com -s blog@latest \
+  --proxy http://proxy1:8080 --proxy-rotation round-robin
+
+# With stealth mode (requires --browser)
+cargo run --bin ares-cli --features browser -- scrape -u https://spa.com -s blog@latest \
+  --browser --stealth --random-ua --tls-backend native
+
 # Skip saving if data unchanged
 cargo run --bin ares-cli -- scrape -u https://example.com -s blog@latest --save --skip-unchanged
 ```
@@ -40,6 +56,12 @@ Flags:
 - `--throttle` — Per-domain throttle delay in milliseconds (0 = disabled)
 - `--no-cache` — Disable in-memory caching (content + extraction)
 - `--cache-ttl` — Cache TTL in seconds (default: 3600, env: `ARES_CACHE_TTL`)
+- `--proxy` — Proxy URL: http, https, or socks5 (env: `ARES_PROXY`)
+- `--proxy-file` — Path to file with one proxy URL per line (env: `ARES_PROXY_FILE`)
+- `--proxy-rotation` — Rotation strategy: `round-robin` (default) or `random`
+- `--random-ua` — Rotate User-Agent with realistic browser strings
+- `--stealth` — Browser stealth mode (requires `--browser`): hides webdriver, randomises viewport, spoofs navigator
+- `--tls-backend` — TLS backend: `rustls` (default), `native`, `random` (env: `ARES_TLS_BACKEND`)
 - `--format` — Output format: `json` (default), `jsonl`, `csv`, `table`, `jq`
 
 ### `ares history` — View extraction history
@@ -94,6 +116,12 @@ Flags:
 - `--throttle` — Per-domain throttle delay in milliseconds (0 = disabled)
 - `--no-cache` — Disable in-memory caching
 - `--cache-ttl` — Cache TTL in seconds (default: 3600, env: `ARES_CACHE_TTL`)
+- `--proxy` — Proxy URL: http, https, or socks5 (env: `ARES_PROXY`)
+- `--proxy-file` — Path to file with one proxy URL per line (env: `ARES_PROXY_FILE`)
+- `--proxy-rotation` — Rotation strategy: `round-robin` (default) or `random`
+- `--random-ua` — Rotate User-Agent with realistic browser strings
+- `--stealth` — Browser stealth mode (requires `--browser`)
+- `--tls-backend` — TLS backend: `rustls` (default), `native`, `random` (env: `ARES_TLS_BACKEND`)
 
 ### `ares crawl` — Recursive web crawling
 
@@ -316,6 +344,14 @@ ARES_BODY_SIZE_LIMIT=2097152        # 2MB
 
 # Caching
 ARES_CACHE_TTL=3600                  # In-memory cache TTL in seconds
+
+# Proxy & Anti-Bot Evasion
+ARES_PROXY=http://proxy:8080         # Single proxy URL
+ARES_PROXY_FILE=/path/to/proxies.txt # Proxy list file (one URL per line)
+ARES_PROXY_ROTATION=round-robin      # round-robin or random
+ARES_RANDOM_UA=false                 # Rotate User-Agent headers
+ARES_STEALTH=false                   # Browser stealth mode (server only)
+ARES_TLS_BACKEND=rustls              # rustls, native, or random
 
 # Browser (optional)
 CHROME_BIN=/path/to/chromium

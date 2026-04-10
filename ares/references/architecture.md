@@ -29,7 +29,7 @@ ares-client ──── ares-core
 ares-db ──────── ares-core
 ```
 
-`ares-core` has zero external runtime dependencies beyond `serde`, `tokio`, `sha2`, `chrono`, `uuid`, `tracing`, and `thiserror`. All I/O is abstracted behind traits.
+`ares-core` has zero external runtime dependencies beyond `serde`, `tokio`, `sha2`, `chrono`, `uuid`, `url`, `tracing`, and `thiserror`. All I/O is abstracted behind traits.
 
 ## ScrapeService
 
@@ -148,6 +148,66 @@ let fetcher = ThrottledFetcher::new(inner_fetcher, config);
 Per-domain delay tracking. Thread-safe (Arc<Mutex<HashMap>>). Drops lock during sleep so different domains aren't blocked.
 
 Default: 1s delay, 500ms jitter.
+
+## Proxy Rotation
+
+`ProxyConfig` (in `ares-core::proxy`) manages a pool of proxy endpoints:
+
+```rust
+ProxyConfig::new(proxies, RotationStrategy::RoundRobin)
+```
+
+- **Round-robin**: cycles through proxies in order via `AtomicUsize`
+- **Random**: picks a random proxy each time (uses centralized `ares_core::rand::random_index`)
+- Thread-safe: concurrent callers get different proxies without locking
+- `ProxyConfig::entries()` returns proxies in insertion order (for building parallel data structures)
+- `ProxyEntry::authenticated_url()` embeds percent-encoded credentials into the URL
+
+`ReqwestFetcher::with_proxies(config)` pre-builds one `reqwest::Client` per proxy in stable insertion order, so `clients[i]` always corresponds to `proxies[i]`. `next_index()` selects which client to use per request.
+
+## TLS Fingerprint Diversity
+
+`TlsBackend` (in `ares-core::proxy`):
+
+- **Rustls** (default): pure-Rust TLS — consistent cross-platform fingerprint
+- **Native**: platform TLS (OpenSSL / SChannel / SecureTransport)
+- **Random**: alternates per client at construction time
+
+`ReqwestFetcher::with_tls_backend(backend)` must be called **before** `with_proxies` so per-proxy clients use the same backend.
+
+## User-Agent Rotation
+
+`UserAgentPool` (in `ares-client::user_agent`):
+
+- 20 curated browser UA strings (Chrome, Firefox, Safari, Edge across Windows/macOS/Linux/mobile)
+- `pool.next()` returns a random UA per call
+- `ReqwestFetcher::with_random_ua()` overrides the default UA header per request
+- `BrowserFetcher` rotates UA per page when stealth is enabled
+
+## Browser Stealth
+
+`StealthConfig` (in `ares-core::stealth`) — all features opt-in (default: disabled):
+
+| Technique | Field | What It Does |
+|---|---|---|
+| Hide webdriver | `hide_webdriver` | Patches `navigator.webdriver`, fakes `window.chrome`, WebGL, plugins, permissions |
+| Rotate User-Agent | `rotate_user_agent` | Per-page UA from `UserAgentPool` |
+| Randomize viewport | `randomize_viewport` | 10 common desktop resolutions |
+| Spoof platform | `spoof_platform` | `navigator.platform` matching the UA OS |
+| Spoof languages | `spoof_languages` | Realistic `navigator.languages` arrays |
+
+`StealthConfig::full()` enables everything. `StealthConfig::disabled()` (the default) disables all.
+
+Stealth injections are applied on a blank page (`about:blank`) **before** navigating to the target URL, so `AddScriptToEvaluateOnNewDocument` hooks fire before any site JavaScript.
+
+## Randomness
+
+`ares_core::rand::random_index(len)` — centralized lightweight RNG:
+
+- xorshift64 seeded from `SystemTime` nanos
+- Mixed with a global `AtomicU64` counter to avoid same-nanos collisions under concurrency
+- Used by proxy rotation, stealth helpers, and User-Agent selection
+- Not cryptographically secure — intended for load balancing / rotation only
 
 ## Error Handling
 
