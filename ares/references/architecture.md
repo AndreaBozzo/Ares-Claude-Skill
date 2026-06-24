@@ -6,13 +6,17 @@
 ScrapeService::scrape(url, schema, schema_name)
   │
   ├─ 1. Fetcher::fetch(url)              → HTML string
-  ├─ 2. Cleaner::clean(html)             → Markdown string
+  ├─ 2. Cleaner::clean(html)             → Markdown string (optionally capped: max_content_chars)
   ├─ 3. Extractor::extract(markdown, schema) → JSON Value
-  ├─ 4. compute_hash(markdown)           → content_hash (SHA-256)
-  ├─ 5. compute_hash(json.to_string())   → data_hash (SHA-256)
-  ├─ 6. ExtractionStore::get_latest()    → compare data_hash for change detection
-  └─ 7. ExtractionStore::save()          → persist (skipped if skip_unchanged && !changed)
+  ├─ 4. validate_extracted_output()      → AppError::ExtractionValidationError on mismatch (nothing persisted)
+  │      └─ ungrounded_fields()          → warns (does not fail) on likely hallucinations
+  ├─ 5. compute_hash(markdown)           → content_hash (SHA-256)
+  ├─ 6. compute_hash(json.to_string())   → data_hash (SHA-256)
+  ├─ 7. ExtractionStore::get_latest()    → compare data_hash for change detection
+  └─ 8. ExtractionStore::save()          → persist (skipped if skip_unchanged && !changed)
 ```
+
+Step 4 runs for **all** entrypoints (CLI, API, worker, crawl) because they all funnel through `ScrapeService`. Toggle with `.with_validation(false)` (default on). Distinguish `ExtractionValidationError` (parseable JSON that violates the schema) from `SchemaValidationError` (the LLM output wasn't valid JSON at all).
 
 ## Crate Dependency Graph
 
@@ -41,16 +45,21 @@ where F: Fetcher, C: Cleaner, E: Extractor, S: ExtractionStore
     fetcher: F,
     cleaner: C,
     extractor: E,
-    store: Option<S>,      // None = no persistence
+    store: Option<S>,              // None = no persistence
     model_name: String,
-    skip_unchanged: bool,  // skip save when data_hash matches previous
+    skip_unchanged: bool,          // skip save when data_hash matches previous
+    validate: bool,                // validate extracted output against schema (default: true)
+    max_content_chars: Option<usize>, // cap cleaned content sent to the extractor
+    // (+ optional ContentCache / ExtractionCache)
 }
 ```
 
-Constructors:
+Constructors / builders:
 - `ScrapeService::new(fetcher, cleaner, extractor, model_name)` — no persistence
 - `ScrapeService::with_store(fetcher, cleaner, extractor, store, model_name)` — with DB
-- `.with_skip_unchanged(true)` — builder method to enable change-detection skipping
+- `.with_skip_unchanged(true)` — enable change-detection skipping
+- `.with_validation(false)` — disable schema validation of extracted output (default on)
+- `.with_max_content_chars(Some(n))` — cap cleaned content sent to the extractor
 - `.with_caches(Some(content_cache), Some(extraction_cache))` — enable in-memory caching
 
 Use `NullStore` (from `ares_core::traits`) as the type parameter when persistence is not needed.
@@ -222,12 +231,16 @@ Stealth injections are applied on a blank page (`about:blank`) **before** naviga
 | `RateLimitExceeded` | Yes | Yes |
 | `CleanerError(String)` | No | No |
 | `SchemaValidationError(String)` | No | No |
+| `ExtractionValidationError(String)` | No | No |
+| `InvalidInput(String)` | No | No |
 | `SchemaError(String)` | No | No |
 | `SchemaNotFound { name, version }` | No | No |
 | `SerializationError(serde_json::Error)` | No | No |
 | `ConfigError(String)` | No | No |
 | `DatabaseError(String)` | No | No |
 | `Generic(String)` | No | No |
+
+Over HTTP (`ares-api/src/error.rs`), variants map to status codes — notably `ExtractionValidationError` → **422**, `InvalidInput` → **400**, `SchemaNotFound` → **404**, `RateLimitExceeded` → **429**. When adding a variant, set its `is_retryable()` / `should_trip_circuit()` classification **and** its HTTP mapping deliberately.
 
 ## Database Schema
 
