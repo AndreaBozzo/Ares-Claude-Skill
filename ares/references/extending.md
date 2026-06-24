@@ -71,7 +71,13 @@ impl Extractor for MyExtractor {
 }
 ```
 
-Built-in: `OpenAiExtractor` — works with any OpenAI-compatible API (`ares-client::llm`).
+Built-in extractors:
+- `OpenAiExtractor` — any OpenAI-compatible API, incl. Gemini's compat endpoint and local OpenAI-style servers (`ares-client::llm`)
+- `AnthropicExtractor` — native Anthropic Messages API via forced tool use, feature `anthropic` (`ares-client::anthropic`)
+- `CandleExtractor` — native CPU inference through Candle, feature `local-llm` (`ares-client::candle`)
+- `ProviderExtractor` / `ProviderExtractorFactory` — runtime dispatch enums that wrap any of the above behind one type, chosen via `Provider` (`ares-client::provider`)
+
+The pipeline validates the extractor's output against the schema (`validate_extracted_output`) before persisting, so a custom extractor only needs to return parseable JSON — it does not have to self-validate.
 
 ## Implementing an ExtractorFactory
 
@@ -189,7 +195,9 @@ use ares_core::traits::RobotsChecker;
 pub struct MyRobotsChecker;
 
 impl RobotsChecker for MyRobotsChecker {
-    async fn is_allowed(&self, url: &str) -> Result<bool, AppError> {
+    // Returns plain `bool` (not Result): on fetch/parse errors, prefer to
+    // return `true` (graceful degradation) rather than blocking the crawl.
+    async fn is_allowed(&self, url: &str) -> bool {
         // Check if the URL is allowed by robots.txt rules
         // Return true if crawling is permitted
         todo!()

@@ -43,9 +43,10 @@ cargo run --bin ares-cli -- scrape -u https://example.com -s blog@latest --save 
 Flags:
 - `-u, --url` — Target URL (required)
 - `-s, --schema` — Schema file path or `name@version` (required)
-- `-m, --model` — LLM model name (default: env `ARES_MODEL` or `gpt-4o-mini`)
-- `-b, --base-url` — OpenAI-compatible API base URL (default: env `ARES_BASE_URL`)
-- `-a, --api-key` — LLM API key (default: env `ARES_API_KEY`)
+- `-m, --model` — LLM model name (e.g. `gpt-4o-mini`, `gemini-2.5-flash`, `claude-haiku-4-5`; default: env `ARES_MODEL`)
+- `--provider` — LLM provider: `openai` (default, OpenAI-compatible), `anthropic`, or `local` (native Candle) (env: `ARES_PROVIDER`)
+- `-b, --base-url` — API base URL (default: env `ARES_BASE_URL`, else the selected provider's endpoint)
+- `-a, --api-key` — LLM API key (default: env `ARES_API_KEY`; not needed with `--provider local`)
 - `--save` — Persist to database (requires `DATABASE_URL`)
 - `--schema-name` — Override schema name for storage
 - `--browser` — Use headless browser (requires `--features browser`)
@@ -56,6 +57,7 @@ Flags:
 - `--throttle` — Per-domain throttle delay in milliseconds (0 = disabled)
 - `--no-cache` — Disable in-memory caching (content + extraction)
 - `--cache-ttl` — Cache TTL in seconds (default: 3600, env: `ARES_CACHE_TTL`)
+- `--max-content` — Cap the cleaned content (in characters) sent to the extractor; bounds timeout/cost on large pages (grounded metadata is preserved)
 - `--proxy` — Proxy URL: http, https, or socks5 (env: `ARES_PROXY`)
 - `--proxy-file` — Path to file with one proxy URL per line (env: `ARES_PROXY_FILE`)
 - `--proxy-rotation` — Rotation strategy: `round-robin` (default) or `random`
@@ -63,6 +65,24 @@ Flags:
 - `--stealth` — Browser stealth mode (requires `--browser`): hides webdriver, randomises viewport, spoofs navigator
 - `--tls-backend` — TLS backend: `rustls` (default), `native`, `random` (env: `ARES_TLS_BACKEND`)
 - `--format` — Output format: `json` (default), `jsonl`, `csv`, `table`, `jq`
+
+Provider examples:
+
+```bash
+# Anthropic (native Messages API) — requires the `anthropic` feature
+cargo run --bin ares-cli --features anthropic -- scrape -u https://example.com -s blog@latest \
+  --provider anthropic -m claude-haiku-4-5 --api-key $ANTHROPIC_API_KEY
+
+# Local OpenAI-compatible server (llama.cpp / Ollama / LM Studio)
+cargo run --bin ares-cli -- scrape -u https://example.com -s blog@latest \
+  -m qwen2.5 --base-url http://localhost:11434/v1 --api-key sk-local
+
+# Native local inference via Candle — requires the `local-llm` feature
+cargo run --bin ares-cli --features local-llm -- scrape -u https://example.com -s blog@latest \
+  --provider local
+```
+
+Output validation: after extraction the result is checked against the schema. On mismatch the command fails with `ExtractionValidationError` and nothing is saved.
 
 ### `ares history` — View extraction history
 
@@ -110,7 +130,8 @@ cargo run --bin ares-cli --features browser -- worker --browser
 
 Flags:
 - `--poll-interval` — Seconds between job queue polls (default: 5)
-- `--api-key` — LLM API key (default: env `ARES_API_KEY`)
+- `--api-key` — LLM API key (default: env `ARES_API_KEY`; not needed with `--provider local`)
+- `--provider` — LLM provider: `openai` (default), `anthropic`, or `local` (env: `ARES_PROVIDER`). Per-job base URLs should target the selected provider's API.
 - `--browser` — Use headless browser for fetching
 - `--skip-unchanged` — Skip saving if data unchanged
 - `--throttle` — Per-domain throttle delay in milliseconds (0 = disabled)
@@ -160,6 +181,21 @@ Note: Crawl creates jobs in the queue. A worker (`ares worker`) must be running 
 cargo run --bin ares-cli -- schema validate schemas/blog/1.0.0.json
 ```
 
+### `ares model` — Native local model management (feature `local-llm`)
+
+Manages the weights used by the native Candle backend (`--provider local`). Cached under the OS cache dir (e.g. `~/.cache/ares/models`).
+
+```bash
+# Download the pinned local model
+cargo run --bin ares-cli --features local-llm -- model pull
+
+# List cached models
+cargo run --bin ares-cli --features local-llm -- model list
+
+# Remove a cached model
+cargo run --bin ares-cli --features local-llm -- model remove
+```
+
 ## REST API (`ares-api`)
 
 Server runs on `ARES_SERVER_PORT` (default: 3000). OpenAPI docs at `/swagger-ui`.
@@ -179,7 +215,8 @@ All `/v1/*` endpoints require bearer token: `Authorization: Bearer $ARES_ADMIN_T
   "schema": {"type": "object", "properties": {...}},
   "schema_name": "blog",
   "model": "gpt-4o-mini",        // optional (falls back to ARES_MODEL)
-  "base_url": "https://api.openai.com/v1",  // optional (falls back to ARES_BASE_URL)
+  "provider": "openai",          // optional: "openai" (default), "anthropic", "local" (falls back to ARES_PROVIDER)
+  "base_url": "https://api.openai.com/v1",  // optional (falls back to ARES_BASE_URL, then the provider default)
   "save": true                    // optional (default: true)
 }
 
@@ -192,6 +229,8 @@ All `/v1/*` endpoints require bearer token: `Authorization: Bearer $ARES_ADMIN_T
   "extraction_id": "uuid"
 }
 ```
+
+Returns **422** (`ExtractionValidationError`) when the extracted output doesn't conform to the schema, and **400** when an unknown `provider` is requested.
 
 #### `POST /v1/jobs` — Create job (202 Accepted)
 
@@ -324,9 +363,10 @@ Returns extracted data from all completed jobs in the crawl session.
 
 ```bash
 # LLM Configuration
-ARES_API_KEY=your-api-key          # Required for scrape/worker
+ARES_API_KEY=your-api-key          # Required for cloud scrape/worker (not for --provider local)
 ARES_MODEL=gpt-4o-mini             # Default model
-ARES_BASE_URL=https://api.openai.com/v1  # OpenAI-compatible endpoint
+ARES_PROVIDER=openai               # openai (default), anthropic, or local
+ARES_BASE_URL=https://api.openai.com/v1  # API base URL (defaults to the provider's endpoint)
 
 # Database
 DATABASE_URL=postgresql://user:pass@localhost:5432/ares

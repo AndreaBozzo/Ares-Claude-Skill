@@ -13,20 +13,22 @@ Ares is a Rust library, CLI, and HTTP server that extracts structured data from 
 ## Pipeline
 
 ```
-URL → [ContentCache?] → Fetcher (HTML) → Cleaner (Markdown) → [ExtractionCache?] → Extractor (LLM + JSON Schema) → Hash → Compare → Store
+URL → [ContentCache?] → Fetcher (HTML) → Cleaner (Markdown) → [ExtractionCache?] → Extractor (LLM + JSON Schema) → Validate → Hash → Compare → Store
 ```
 
 Each stage is a trait, so every component can be swapped or mocked independently. Optional in-memory caches (moka) skip fetch/extraction when content or results are already cached.
+
+After extraction the result is validated against the JSON Schema (`validate_extracted_output`); on mismatch the pipeline returns `AppError::ExtractionValidationError` and nothing is persisted (toggle with `.with_validation(false)`). A heuristic groundedness check (`ungrounded_fields`) then warns — without failing — when short atomic values look absent from the source (a hallucination signal schema validation can't catch). **Valid JSON is not necessarily grounded truth.**
 
 ## Crate Map
 
 | Crate | Purpose | Key Exports |
 |---|---|---|
-| `ares-core` | Business logic, traits, pipeline | `ScrapeService`, `WorkerService`, `CircuitBreaker`, `ThrottledFetcher`, `CrawlConfig`, `ContentCache`, `ExtractionCache`, `CacheConfig`, `ProxyConfig`, `StealthConfig`, `TlsBackend`, `validate_schema`, traits |
-| `ares-client` | HTTP/browser fetchers, cleaner, LLM client | `ReqwestFetcher`, `BrowserFetcher`, `HtmdCleaner`, `OpenAiExtractor`, `HtmlLinkDiscoverer`, `CachedRobotsChecker`, `UserAgentPool` |
+| `ares-core` | Business logic, traits, pipeline | `ScrapeService`, `WorkerService`, `CircuitBreaker`, `ThrottledFetcher`, `CrawlConfig`, `ContentCache`, `ExtractionCache`, `CacheConfig`, `ProxyConfig`, `StealthConfig`, `TlsBackend`, `validate_schema`, `validate_extracted_output`, `ungrounded_fields`, traits |
+| `ares-client` | HTTP/browser fetchers, cleaner, LLM clients | `ReqwestFetcher`, `BrowserFetcher`, `HtmdCleaner`, `OpenAiExtractor` (+`Factory`), `AnthropicExtractor` (feature `anthropic`), `CandleExtractor` (feature `local-llm`), `Provider`, `ProviderExtractor` (+`Factory`), `HtmlLinkDiscoverer`, `CachedRobotsChecker`, `UserAgentPool` |
 | `ares-db` | PostgreSQL persistence | `Database`, `ExtractionRepository`, `ScrapeJobRepository` |
 | `ares-api` | Axum REST API | Routes, DTOs, bearer auth, OpenAPI/Swagger, crawl endpoints |
-| `ares-cli` | Command-line interface | `scrape`, `history`, `job`, `worker`, `crawl`, `schema` subcommands, output formats |
+| `ares-cli` | Command-line interface | `scrape`, `history`, `job`, `worker`, `crawl`, `schema`, `model` subcommands, output formats |
 
 ## Core Traits (`ares-core::traits`)
 
@@ -64,7 +66,9 @@ pub trait LinkDiscoverer: Send + Sync + Clone {
 }
 
 pub trait RobotsChecker: Send + Sync + Clone {
-    fn is_allowed(&self, url: &str) -> impl Future<Output = Result<bool, AppError>> + Send;
+    // Returns `true` if the URL may be fetched. On fetch/parse errors it
+    // defaults to allowing (graceful degradation) — hence plain `bool`, not Result.
+    fn is_allowed(&self, url: &str) -> impl Future<Output = bool> + Send;
 }
 ```
 
@@ -122,6 +126,18 @@ println!("{}", serde_json::to_string_pretty(&result.extracted_data)?);
 
 With persistence, use `ScrapeService::with_store(fetcher, cleaner, extractor, store, model)`.
 
+## Providers & Backends
+
+The `Extractor` trait is the seam for inference backends. Three ship in-tree, selected at runtime via `--provider` / `ARES_PROVIDER` (CLI), the `provider` field of `POST /v1/scrape` (API), or `Provider` + `ProviderExtractor`/`ProviderExtractorFactory` dispatch enums (library):
+
+| Provider | Value | Backend | Build | Notes |
+|---|---|---|---|---|
+| OpenAI-compatible | `openai` (default) | `OpenAiExtractor` | default | OpenAI, Gemini compat endpoint, local OpenAI-style servers (llama.cpp/Ollama/LM Studio) via `--base-url` |
+| Anthropic (Claude) | `anthropic` | `AnthropicExtractor` | `--features anthropic` | Native Messages API via forced tool use (not OpenAI-compatible) |
+| Local (native) | `local` | `CandleExtractor` | `--features local-llm` | Native CPU inference through Candle; manage weights with `ares model pull/list/remove`. No API key, no per-token cost |
+
+New backends implement `Extractor` + `ExtractorFactory`; nothing else in the pipeline changes.
+
 ## Reference Guides
 
 | Topic | File | When to Read |
@@ -134,8 +150,10 @@ With persistence, use `ScrapeService::with_store(fetcher, cleaner, extractor, st
 
 ## Version Notes
 
-- **Current version:** 0.2.0
+- **Current version:** 0.4.0
 - Until crates.io release, use git dependency: `ares-core = { git = "https://github.com/AndreaBozzo/Ares" }`
-- Works with any OpenAI-compatible API (OpenAI, Gemini, etc.)
-- Browser support requires feature flag: `--features browser`
-- **New in 0.2.0:** Web crawling, in-memory caching, output formats (json/jsonl/csv/table/jq), schema validation, 8 built-in schema templates, proxy rotation, User-Agent rotation, browser stealth mode, TLS backend selection
+- Works with any OpenAI-compatible API (OpenAI, Gemini, local servers) out of the box; Anthropic and native local inference are feature-gated.
+- Optional features: `browser` (headless Chrome), `anthropic` (native Claude), `local-llm` (native Candle CPU inference).
+- **New in 0.3.0:** Provider abstraction with runtime selection (`--provider`/`ARES_PROVIDER`), native Anthropic backend, output validation (`validate_extracted_output`, returned as 422 over HTTP) and groundedness checks (`ungrounded_fields`), `--max-content` cap, additional schemas (`public_tenders`, `tender_list`, `job_board`).
+- **New in 0.4.0:** Native local inference via Candle (`local-llm` feature, `--provider local`, `ares model` subcommand).
+- **Earlier (0.2.0):** Web crawling, in-memory caching, output formats (json/jsonl/csv/table/jq), proxy rotation, User-Agent rotation, browser stealth mode, TLS backend selection.

@@ -35,7 +35,10 @@ schemas/
 ├── job_listing/1.0.0.json
 ├── recipe/1.0.0.json
 ├── event/1.0.0.json
-└── dataset/1.0.0.json
+├── dataset/1.0.0.json
+├── public_tenders/1.0.0.json
+├── tender_list/1.0.0.json
+└── job_board/1.0.0.json
 ```
 
 ## Registry Format
@@ -51,7 +54,10 @@ schemas/
   "job_listing": "1.0.0",
   "recipe": "1.0.0",
   "event": "1.0.0",
-  "dataset": "1.0.0"
+  "dataset": "1.0.0",
+  "public_tenders": "1.0.0",
+  "tender_list": "1.0.0",
+  "job_board": "1.0.0"
 }
 ```
 
@@ -143,7 +149,7 @@ curl -X DELETE http://localhost:3000/v1/schemas/product/1.0.0 \
 
 ## Built-in Schema Templates
 
-Ares ships with 8 schema templates covering common website types:
+Ares ships with 11 schema templates covering common website types:
 
 | Schema | Target Use Case | Key Properties |
 |---|---|---|
@@ -151,10 +157,15 @@ Ares ships with 8 schema templates covering common website types:
 | `github_repo` | GitHub repository pages | name, description, stars, forks, language, topics, license, open_issues |
 | `product` | E-commerce product pages | name, brand, price, currency, rating, review_count, availability, sku |
 | `news_article` | News sites | headline, author, publish_date, source, summary, body_text, category, tags |
-| `job_listing` | Job boards | title, company, location, salary_range, employment_type, requirements, remote |
+| `job_listing` | Single job posting | title, company, location, salary_range, employment_type, requirements, remote |
 | `recipe` | Recipe websites | name, prep_time, cook_time, servings, ingredients, instructions, cuisine, rating |
 | `event` | Event listings | name, organizer, start_date, end_date, location, venue, ticket_price, category |
 | `dataset` | Open data portals | title, publisher, format, license, download_url, temporal_coverage, spatial_coverage |
+| `public_tenders` | Single tender / procurement notice | title, buyer, value, currency, deadline, category, country, reference |
+| `tender_list` | Tender/procurement listing pages | list of tender entries with links (a listing-page schema) |
+| `job_board` | Job board listing pages | list of job entries with links (a listing-page schema) |
+
+`tender_list` and `job_board` are **listing** schemas (they extract an array of items from index pages, typically as crawl seeds); the others are single-record page schemas.
 
 ## Schema Validation
 
@@ -171,6 +182,10 @@ CLI command:
 ```bash
 ares schema validate schemas/blog/1.0.0.json
 ```
+
+Two distinct checks — don't confuse them:
+- `validate_schema(schema)` — **meta-validation**: is the document itself a valid JSON Schema? Run on schema create/update.
+- `validate_extracted_output(schema, value)` — **output validation**: does an extracted value conform to the schema? Run in the pipeline after every extraction (returns `AppError::ExtractionValidationError`, → 422 over HTTP). Schema validation guarantees *shape*, not *truth* — see `ungrounded_fields` for the complementary hallucination heuristic.
 
 ## Helper Functions
 

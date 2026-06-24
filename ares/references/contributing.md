@@ -103,7 +103,8 @@ crates/
 │   ├── worker.rs           # WorkerService
 │   ├── circuit_breaker.rs  # CircuitBreaker
 │   ├── throttle.rs         # ThrottledFetcher
-│   ├── schema.rs           # SchemaResolver
+│   ├── schema.rs           # SchemaResolver, validate_schema, validate_extracted_output
+│   ├── groundedness.rs     # ungrounded_fields (hallucination heuristic)
 │   ├── cache.rs            # ContentCache, ExtractionCache
 │   ├── crawl.rs            # CrawlConfig
 │   └── testutil.rs         # Mock implementations
@@ -112,7 +113,11 @@ crates/
 │   ├── browser_fetcher.rs  # BrowserFetcher (feature: browser)
 │   ├── cleaner.rs          # HtmdCleaner
 │   ├── llm.rs              # OpenAiExtractor, OpenAiExtractorFactory
+│   ├── anthropic.rs        # AnthropicExtractor (feature: anthropic)
+│   ├── candle.rs           # CandleExtractor (feature: local-llm)
+│   ├── provider.rs         # Provider, ProviderExtractor(+Factory) dispatch
 │   ├── link_discovery.rs   # HtmlLinkDiscoverer
+│   ├── user_agent.rs       # UserAgentPool
 │   └── robots.rs           # CachedRobotsChecker
 ├── ares-db/src/
 │   ├── config.rs           # DatabaseConfig
